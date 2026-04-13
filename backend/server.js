@@ -26,9 +26,25 @@ const vendorContacts = {
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "mackyonessolutions@gmail.com",
+    user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   }
+});
+
+// Home route
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "Macky Ones Solution backend is running"
+  });
+});
+
+// Get all leads
+app.get("/leads", (req, res) => {
+  res.json({
+    success: true,
+    leads
+  });
 });
 
 // Submit lead
@@ -44,7 +60,7 @@ app.post("/contact", async (req, res) => {
       requirement
     } = req.body;
 
-    if (!name || !phone || !requirementType || !requirement) {
+    if (!name || !phone || !requirementType || !vendor || !requirement) {
       return res.status(400).json({
         success: false,
         message: "Required fields missing"
@@ -58,7 +74,7 @@ app.post("/contact", async (req, res) => {
       email: email || "",
       city: city || "",
       requirementType,
-      vendor: vendor || "",
+      vendor,
       vendorPhone: vendorContacts[vendor] || "",
       requirement,
       status: "New",
@@ -67,31 +83,36 @@ app.post("/contact", async (req, res) => {
       })
     };
 
+    // Save lead first
     leads.unshift(newLead);
 
-    const info = await transporter.sendMail({
-      from: "mackyonessolutions@gmail.com",
-      to: "mackyonessolutions@gmail.com",
-      subject: "New Requirement Received",
-      text: `Name: ${name}
-Phone: ${phone}
-Email: ${email || ""}
-City: ${city || ""}
-Category: ${requirementType}
-Vendor: ${vendor || ""}
-Vendor Phone: ${vendorContacts[vendor] || ""}
-Requirement: ${requirement}
-Status: New`
+    // Send email
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: process.env.EMAIL_USER,
+      subject: "New Requirement Received - Macky Ones Solution",
+      html: `
+        <h2>New Lead Received</h2>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Phone:</strong> ${phone}</p>
+        <p><strong>Email:</strong> ${email || ""}</p>
+        <p><strong>City:</strong> ${city || ""}</p>
+        <p><strong>Category:</strong> ${requirementType}</p>
+        <p><strong>Vendor:</strong> ${vendor}</p>
+        <p><strong>Vendor Phone:</strong> ${vendorContacts[vendor] || ""}</p>
+        <p><strong>Requirement:</strong> ${requirement}</p>
+        <p><strong>Date:</strong> ${newLead.createdAt}</p>
+      `
     });
-
-    console.log("MAIL SENT:", info.response);
 
     res.json({
       success: true,
-      message: "Lead submitted successfully"
+      message: "Form submitted successfully",
+      lead: newLead
     });
   } catch (error) {
-    console.log("MAIL ERROR:", error);
+    console.error("Contact submit error:", error);
+
     res.status(500).json({
       success: false,
       message: "Email failed"
@@ -99,48 +120,70 @@ Status: New`
   }
 });
 
-// Get all leads
-app.get("/leads", (req, res) => {
-  res.json({
-    success: true,
-    leads
-  });
-});
-
 // Update lead status
 app.put("/leads/:id", (req, res) => {
-  const leadId = Number(req.params.id);
-  const { status } = req.body;
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
 
-  const index = leads.findIndex((lead) => lead.id === leadId);
+    const leadIndex = leads.findIndex((lead) => String(lead.id) === String(id));
 
-  if (index === -1) {
-    return res.status(404).json({
+    if (leadIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Lead not found"
+      });
+    }
+
+    leads[leadIndex].status = status;
+
+    res.json({
+      success: true,
+      message: "Status updated successfully",
+      lead: leads[leadIndex]
+    });
+  } catch (error) {
+    console.error("Update status error:", error);
+
+    res.status(500).json({
       success: false,
-      message: "Lead not found"
+      message: "Server error"
     });
   }
-
-  leads[index].status = status || leads[index].status;
-
-  res.json({
-    success: true,
-    message: "Lead updated",
-    lead: leads[index]
-  });
 });
 
 // Delete lead
 app.delete("/leads/:id", (req, res) => {
-  const leadId = Number(req.params.id);
-  leads = leads.filter((lead) => lead.id !== leadId);
+  try {
+    const { id } = req.params;
 
-  res.json({
-    success: true,
-    message: "Lead deleted"
-  });
+    const leadIndex = leads.findIndex((lead) => String(lead.id) === String(id));
+
+    if (leadIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Lead not found"
+      });
+    }
+
+    const deletedLead = leads[leadIndex];
+    leads = leads.filter((lead) => String(lead.id) !== String(id));
+
+    res.json({
+      success: true,
+      message: "Lead deleted successfully",
+      lead: deletedLead
+    });
+  } catch (error) {
+    console.error("Delete lead error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
