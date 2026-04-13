@@ -1,31 +1,33 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 
 function App() {
-  const [page, setPage] = useState("home");
-
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     name: "",
     phone: "",
     email: "",
     city: "",
-    requirementType: "",
+    category: "",
     vendor: "",
     requirement: ""
   });
 
   const [message, setMessage] = useState("");
   const [leads, setLeads] = useState([]);
+  const [page, setPage] = useState("home");
 
+  const API = "https://macky-ones-solutions.onrender.com";
+
+  // Fetch leads
   const fetchLeads = async () => {
     try {
-      const res = await fetch("https://macky-ones-solutions.onrender.com/leads")
-const data = await res.json();
+      const res = await fetch(`${API}/leads`);
+      const data = await res.json();
 
       if (data.success) {
         setLeads(data.leads);
       }
-    } catch (error) {
-      console.log("Fetch leads error:", error);
+    } catch (err) {
+      console.log("Fetch error:", err);
     }
   };
 
@@ -35,326 +37,118 @@ const data = await res.json();
     }
   }, [page]);
 
+  // Handle input
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage("");
+
+    setMessage("Sending...");
 
     try {
-      const res = await fetch("https://macky-ones-solutions.onrender.com/contact", {
+      const res = await fetch(`${API}/contact`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(form)
       });
 
       const data = await res.json();
 
       if (data.success) {
-        setMessage("Form submitted successfully ✅");
-        setFormData({
+        setMessage("✅ Submitted successfully!");
+        setForm({
           name: "",
           phone: "",
           email: "",
           city: "",
-          requirementType: "",
+          category: "",
           vendor: "",
           requirement: ""
         });
       } else {
-        setMessage(data.message || "Server error ❌");
+        setMessage("❌ " + (data.message || "Error"));
       }
-    } catch (error) {
-      console.log("Submit error:", error);
-      setMessage("Error connecting to server ❌");
+    } catch (err) {
+      setMessage("❌ Server error");
     }
-  };
-
-  const updateStatus = async (id, status) => {
-    try {
-      const res = await fetch(`https://macky-ones-solutions.onrender.com/leads/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ status })
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        fetchLeads();
-      }
-    } catch (error) {
-      console.log("Update status error:", error);
-    }
-  };
-
-  const deleteLead = async (id) => {
-    try {
-      const res = await fetch(`https://macky-ones-solutions.onrender.com/leads/${id}`, {
-        method: "DELETE"
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        fetchLeads();
-      }
-    } catch (error) {
-      console.log("Delete error:", error);
-    }
-  };
-
-  const containerStyle = {
-    maxWidth: "1000px",
-    margin: "0 auto",
-    padding: "20px",
-    fontFamily: "Arial, sans-serif"
-  };
-
-  const inputStyle = {
-    width: "100%",
-    padding: "10px",
-    marginBottom: "12px",
-    border: "1px solid #ccc",
-    borderRadius: "6px",
-    boxSizing: "border-box"
-  };
-
-  const buttonStyle = {
-    padding: "10px 16px",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    marginRight: "8px"
   };
 
   return (
-    <div style={containerStyle}>
+    <div style={{ padding: "20px" }}>
       <h1>Mackyones Solution</h1>
       <p>Requirement Matching & Lead Generation Platform</p>
 
-      <div style={{ marginBottom: "20px" }}>
-        <button
-          style={{ ...buttonStyle, backgroundColor: "#007bff", color: "#fff" }}
-          onClick={() => setPage("home")}
-        >
-          Home
-        </button>
+      <button onClick={() => setPage("home")}>Home</button>
+      <button onClick={() => setPage("admin")}>Admin Panel</button>
 
-        <button
-          style={{ ...buttonStyle, backgroundColor: "#28a745", color: "#fff" }}
-          onClick={() => setPage("admin")}
-        >
-          Admin Panel
-        </button>
-      </div>
-
+      {/* HOME PAGE */}
       {page === "home" && (
-        <div>
+        <form onSubmit={handleSubmit}>
           <h2>Post Your Requirement</h2>
 
-          <form onSubmit={handleSubmit}>
-            <input
-              style={inputStyle}
-              type="text"
-              name="name"
-              placeholder="Your Name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-            />
+          <input name="name" value={form.name} onChange={handleChange} placeholder="Name" required /><br /><br />
+          <input name="phone" value={form.phone} onChange={handleChange} placeholder="Phone" required /><br /><br />
+          <input name="email" value={form.email} onChange={handleChange} placeholder="Email" required /><br /><br />
+          <input name="city" value={form.city} onChange={handleChange} placeholder="City" required /><br /><br />
 
-            <input
-              style={inputStyle}
-              type="text"
-              name="phone"
-              placeholder="Mobile Number"
-              value={formData.phone}
-              onChange={handleChange}
-              required
-            />
+          <select name="category" value={form.category} onChange={handleChange}>
+            <option value="">Select Category</option>
+            <option value="Solar">Solar</option>
+            <option value="Telecom">Telecom</option>
+          </select><br /><br />
 
-            <input
-              style={inputStyle}
-              type="email"
-              name="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={handleChange}
-            />
+          <select name="vendor" value={form.vendor} onChange={handleChange}>
+            <option value="">Select Vendor</option>
+            <option value="Solar Vendor">Solar Vendor</option>
+            <option value="Telecom Vendor">Telecom Vendor</option>
+          </select><br /><br />
 
-            <input
-              style={inputStyle}
-              type="text"
-              name="city"
-              placeholder="City"
-              value={formData.city}
-              onChange={handleChange}
-            />
+          <textarea name="requirement" value={form.requirement} onChange={handleChange} placeholder="Requirement" required /><br /><br />
 
-            <select
-              style={inputStyle}
-              name="requirementType"
-              value={formData.requirementType}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select Category</option>
-              <option value="Solar">Solar</option>
-              <option value="Telecom">Telecom</option>
-              <option value="IT">IT</option>
-              <option value="Work From Home Job">Work From Home Job</option>
-              <option value="Vendor Requirement">Vendor Requirement</option>
-            </select>
+          <button type="submit">Submit</button>
 
-            <select
-              style={inputStyle}
-              name="vendor"
-              value={formData.vendor}
-              onChange={handleChange}
-            >
-              <option value="">Select Vendor</option>
-              <option value="Airtel Vendor">Airtel Vendor</option>
-              <option value="Jio Vendor">Jio Vendor</option>
-              <option value="Solar Vendor">Solar Vendor</option>
-              <option value="IT Vendor">IT Vendor</option>
-              <option value="Freelancer">Freelancer</option>
-              <option value="Company Hiring">Company Hiring</option>
-              <option value="Job Provider">Job Provider</option>
-            </select>
-
-            <textarea
-              style={inputStyle}
-              name="requirement"
-              placeholder="Enter your requirement"
-              value={formData.requirement}
-              onChange={handleChange}
-              rows="5"
-              required
-            />
-
-            <button
-              type="submit"
-              style={{ ...buttonStyle, backgroundColor: "#000", color: "#fff" }}
-            >
-              Submit
-            </button>
-          </form>
-
-          {message && (
-            <p style={{ marginTop: "15px", fontWeight: "bold" }}>{message}</p>
-          )}
-        </div>
+          <p>{message}</p>
+        </form>
       )}
 
+      {/* ADMIN PANEL */}
       {page === "admin" && (
         <div>
           <h2>Admin Panel</h2>
           <p>Total Leads: {leads.length}</p>
 
-          <div style={{ overflowX: "auto" }}>
-            <table
-              border="1"
-              cellPadding="10"
-              cellSpacing="0"
-              width="100%"
-              style={{ borderCollapse: "collapse" }}
-            >
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Phone</th>
-                  <th>Email</th>
-                  <th>City</th>
-                  <th>Category</th>
-                  <th>Vendor</th>
-                  <th>Requirement</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Action</th>
+          <table border="1" cellPadding="5">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>City</th>
+                <th>Category</th>
+                <th>Vendor</th>
+                <th>Requirement</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {leads.map((lead, i) => (
+                <tr key={i}>
+                  <td>{lead.name}</td>
+                  <td>{lead.phone}</td>
+                  <td>{lead.email}</td>
+                  <td>{lead.city}</td>
+                  <td>{lead.category}</td>
+                  <td>{lead.vendor}</td>
+                  <td>{lead.requirement}</td>
                 </tr>
-              </thead>
-
-              <tbody>
-                {leads.length > 0 ? (
-                  leads.map((lead) => (
-                    <tr key={lead.id}>
-                      <td>{lead.name}</td>
-                      <td>{lead.phone}</td>
-                      <td>{lead.email}</td>
-                      <td>{lead.city}</td>
-                      <td>{lead.requirementType}</td>
-
-                      <td>
-                        <strong>{lead.vendor}</strong>
-                        <br />
-                        <br />
-                        <a
-                          href={`tel:${lead.vendorPhone}`}
-                          style={{ color: "blue" }}
-                        >
-                          Call
-                        </a>
-                        {" | "}
-                        <a
-                          href={`https://wa.me/91${lead.vendorPhone}?text=Hello%20I%20have%20a%20requirement%20for%20${lead.requirementType}%20in%20${lead.city}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ color: "green" }}
-                        >
-                          WhatsApp
-                        </a>
-                      </td>
-
-                      <td>{lead.requirement}</td>
-
-                      <td>
-                        <select
-                          value={lead.status}
-                          onChange={(e) => updateStatus(lead.id, e.target.value)}
-                        >
-                          <option value="New">New</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Closed">Closed</option>
-                        </select>
-                      </td>
-
-                      <td>{lead.createdAt}</td>
-
-                      <td>
-                        <button
-                          style={{
-                            ...buttonStyle,
-                            backgroundColor: "red",
-                            color: "#fff",
-                            marginRight: 0
-                          }}
-                          onClick={() => deleteLead(lead.id)}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="10" style={{ textAlign: "center" }}>
-                      No leads found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
