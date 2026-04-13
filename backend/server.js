@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
+const https = require("https");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -22,16 +23,51 @@ const vendorContacts = {
   "Job Provider": "9876500004"
 };
 
-// Gmail transporter
+// SMTP transporter (Brevo)
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT || 587),
+  secure: false,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
   }
 });
 
-// Home route
+// WhatsApp notification via CallMeBot
+function sendWhatsAppNotification(message) {
+  return new Promise((resolve, reject) => {
+    const phone = process.env.CALLMEBOT_PHONE;
+    const apiKey = process.env.CALLMEBOT_APIKEY;
+
+    if (!phone || !apiKey) {
+      return resolve("CallMeBot env vars missing, WhatsApp skipped");
+    }
+
+    const url =
+      `https://api.callmebot.com/whatsapp.php?phone=${phone}` +
+      `&text=${encodeURIComponent(message)}` +
+      `&apikey=${apiKey}`;
+
+    https
+      .get(url, (resp) => {
+        let data = "";
+
+        resp.on("data", (chunk) => {
+          data += chunk;
+        });
+
+        resp.on("end", () => {
+          resolve(data);
+        });
+      })
+      .on("error", (err) => {
+        reject(err);
+      });
+  });
+}
+
+// Root route
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -47,7 +83,7 @@ app.get("/leads", (req, res) => {
   });
 });
 
-// Submit lead
+// Submit contact / lead
 app.post("/contact", async (req, res) => {
   try {
     const {
@@ -86,36 +122,85 @@ app.post("/contact", async (req, res) => {
     // Save lead first
     leads.unshift(newLead);
 
-    // Send email
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.EMAIL_USER,
-      subject: "New Requirement Received - Macky Ones Solution",
-      html: `
-        <h2>New Lead Received</h2>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Phone:</strong> ${phone}</p>
-        <p><strong>Email:</strong> ${email || ""}</p>
-        <p><strong>City:</strong> ${city || ""}</p>
-        <p><strong>Category:</strong> ${requirementType}</p>
-        <p><strong>Vendor:</strong> ${vendor}</p>
-        <p><strong>Vendor Phone:</strong> ${vendorContacts[vendor] || ""}</p>
-        <p><strong>Requirement:</strong> ${requirement}</p>
-        <p><strong>Date:</strong> ${newLead.createdAt}</p>
-      `
-    });
+    // Email message
+    const emailHtml = `
+      <h2>New Lead Received</h2>
+      <p><strong>Name:</strong> ${name}</p>
+      <p><strong>Phone:</strong> ${phone}</p>
+      <p><strong>Email:</strong> ${email || ""}</p>
+      <p><strong>City:</strong> ${city || ""}</p>
+      <p><strong>Category:</strong> ${requirementType}</p>
+      <p><strong>Vendor:</strong> ${vendor}</p>
+      <p><strong>Vendor Phone:</strong> ${vendorContacts[vendor] || ""}</p>
+      <p><strong>Requirement:</strong> ${requirement}</p>
+      <p><strong>Date:</strong> ${newLead.createdAt}</p>
+    `;
 
-    res.json({
-      success: true,
-      message: "Form submitted successfully",
+    // WhatsApp message
+    const whatsappMessage =
+      `New Lead Received%n%n` +
+      `Name: ${name}%n` +
+      `Phone: ${phone}%n` +
+      `Email: ${email || ""}%n` +
+      `City: ${city || ""}%n` +
+      `Category: ${requirementType}%n` +
+      `Vendor: ${vendor}%n` +
+      `Vendor Phone: ${vendorContacts[vendor] || ""}%n` +
+      `Requirement: ${requirement}%n` +
+      `Date: ${newLead.createdAt}`;
+
+    let emailSent = false;
+    let whatsappSent = false;
+    let emailError = "";
+    let whatsappError = "";
+
+    // Send email
+    try {
+      await transporter.sendMail({
+        from: `"Macky Ones Solution" <${process.env.FROM_EMAIL || process.env.SMTP_USER}>`,
+        to: process.env.TO_EMAIL || process.env.FROM_EMAIL || process.env.SMTP_USER,
+        subject: "New Requirement Received - Macky Ones Solution",
+        html: emailHtml
+      });
+      emailSent = true;
+    } catch (err) {
+      emailError = err.message;
+      console.error("MAIL ERROR:", err);
+    }
+
+    // Send WhatsApp
+    try {
+      await sendWhatsAppNotification(whatsappMessage);
+      whatsappSent = true;
+    } catch (err) {
+      whatsappError = err.message;
+      console.error("WHATSAPP ERROR:", err);
+    }
+
+    // Final response
+    if (emailSent || whatsappSent) {
+      return res.json({
+        success: true,
+        message: "Lead submitted successfully",
+        emailSent,
+        whatsappSent,
+        lead: newLead
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Lead saved but notifications failed",
+      emailError,
+      whatsappError,
       lead: newLead
     });
   } catch (error) {
-    console.error("Contact submit error:", error);
+    console.error("CONTACT SUBMIT ERROR:", error);
 
     res.status(500).json({
       success: false,
-      message: "Email failed"
+      message: "Server error"
     });
   }
 });
@@ -143,7 +228,7 @@ app.put("/leads/:id", (req, res) => {
       lead: leads[leadIndex]
     });
   } catch (error) {
-    console.error("Update status error:", error);
+    console.error("UPDATE STATUS ERROR:", error);
 
     res.status(500).json({
       success: false,
@@ -175,7 +260,7 @@ app.delete("/leads/:id", (req, res) => {
       lead: deletedLead
     });
   } catch (error) {
-    console.error("Delete lead error:", error);
+    console.error("DELETE LEAD ERROR:", error);
 
     res.status(500).json({
       success: false,
