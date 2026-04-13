@@ -3,7 +3,7 @@ const cors = require("cors");
 const nodemailer = require("nodemailer");
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
@@ -27,7 +27,7 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: "mackyonessolutions@gmail.com",
-    pass: "szjk yyae tunc gbxq"
+    pass: process.env.EMAIL_PASS
   }
 });
 
