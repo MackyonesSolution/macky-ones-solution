@@ -18,7 +18,7 @@ function App() {
 
   const fetchLeads = async () => {
     try {
-      const res = await fetch("https://macky-ones-solution.onrender.com/leads");
+      const res = await fetch("https://macky-ones-solutions.onrender.com/leads")
 const data = await res.json();
 
       if (data.success) {
@@ -47,7 +47,7 @@ const data = await res.json();
     setMessage("");
 
     try {
-      const res = await fetch("https://macky-ones-solution.onrender.com/contact", {
+      const res = await fetch("https://macky-ones-solutions.onrender.com/contact", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -79,7 +79,7 @@ const data = await res.json();
 
   const updateStatus = async (id, status) => {
     try {
-      const res = await fetch(`https://macky-ones-solution.onrender.com/leads/${id}`, {
+      const res = await fetch(`https://macky-ones-solutions.onrender.com/leads/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json"
@@ -99,7 +99,7 @@ const data = await res.json();
 
   const deleteLead = async (id) => {
     try {
-      const res = await fetch(`https://macky-ones-solution.onrender.com/leads/${id}`, {
+      const res = await fetch(`https://macky-ones-solutions.onrender.com/leads/${id}`, {
         method: "DELETE"
       });
 
