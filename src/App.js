@@ -1,344 +1,280 @@
-import React, { useEffect, useState } from "react";
+const express = require("express");
+const cors = require("cors");
+const axios = require("axios");
+const https = require("https");
 
-function App() {
-  const API = "https://macky-ones-solutions.onrender.com";
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-  const [page, setPage] = useState("home");
-  const [message, setMessage] = useState("");
-  const [leads, setLeads] = useState([]);
+app.use(cors());
+app.use(express.json());
 
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    city: "",
-    requirementType: "",
-    vendor: "",
-    requirement: ""
-  });
+// Temporary lead storage
+let leads = [];
 
-  const fetchLeads = async () => {
-    try {
-      const res = await fetch(`${API}/leads`);
-      const data = await res.json();
+// Vendor contact list
+const vendorContacts = {
+  "Airtel Vendor": "9876543210",
+  "Jio Vendor": "9123456780",
+  "Solar Vendor": "9988776655",
+  "IT Vendor": "9876500001",
+  Freelancer: "9876500002",
+  "Company Hiring": "9876500003",
+  "Job Provider": "9876500004"
+};
 
-      if (data.success) {
-        setLeads(data.leads || []);
-      }
-    } catch (error) {
-      console.error("Fetch leads error:", error);
+// WhatsApp notification via CallMeBot
+function sendWhatsAppNotification(message) {
+  return new Promise((resolve, reject) => {
+    const phone = process.env.CALLMEBOT_PHONE;
+    const apiKey = process.env.CALLMEBOT_APIKEY;
+
+    if (!phone || !apiKey) {
+      return resolve("CallMeBot not configured");
     }
-  };
 
-  useEffect(() => {
-    if (page === "admin") {
-      fetchLeads();
-    }
-  }, [page]);
+    const url =
+      `https://api.callmebot.com/whatsapp.php?phone=${phone}` +
+      `&text=${encodeURIComponent(message)}` +
+      `&apikey=${apiKey}`;
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+    https
+      .get(url, (resp) => {
+        let data = "";
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage("Sending...");
-
-    const payload = {
-      name: form.name,
-      phone: form.phone,
-      email: form.email,
-      city: form.city,
-      requirementType: form.requirementType,
-      vendor: form.vendor,
-      requirement: form.requirement
-    };
-
-    try {
-      const res = await fetch(`${API}/contact`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setMessage("Submitted successfully ✅");
-        setForm({
-          name: "",
-          phone: "",
-          email: "",
-          city: "",
-          requirementType: "",
-          vendor: "",
-          requirement: ""
+        resp.on("data", (chunk) => {
+          data += chunk;
         });
-      } else {
-        setMessage(data.message || "Error");
-      }
-    } catch (error) {
-      console.error("Submit error:", error);
-      setMessage("Server error");
-    }
-  };
 
-  const updateStatus = async (id, status) => {
-    try {
-      const res = await fetch(`${API}/leads/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ status })
+        resp.on("end", () => {
+          resolve(data);
+        });
+      })
+      .on("error", (err) => {
+        reject(err);
       });
-
-      const data = await res.json();
-
-      if (data.success) {
-        fetchLeads();
-      }
-    } catch (error) {
-      console.error("Update status error:", error);
-    }
-  };
-
-  const deleteLead = async (id) => {
-    try {
-      const res = await fetch(`${API}/leads/${id}`, {
-        method: "DELETE"
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        fetchLeads();
-      }
-    } catch (error) {
-      console.error("Delete lead error:", error);
-    }
-  };
-
-  return (
-    <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
-      <h1>Mackyones Solution</h1>
-      <p>Requirement Matching & Lead Generation Platform</p>
-
-      <div style={{ marginBottom: "20px" }}>
-        <button onClick={() => setPage("home")} style={{ marginRight: "10px" }}>
-          Home
-        </button>
-        <button onClick={() => setPage("admin")}>
-          Admin Panel
-        </button>
-      </div>
-
-      {page === "home" && (
-        <form onSubmit={handleSubmit}>
-          <h2>Post Your Requirement</h2>
-
-          <div style={{ marginBottom: "10px" }}>
-            <input
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              placeholder="Your Name"
-              required
-              style={{ width: "300px", padding: "8px" }}
-            />
-          </div>
-
-          <div style={{ marginBottom: "10px" }}>
-            <input
-              type="text"
-              name="phone"
-              value={form.phone}
-              onChange={handleChange}
-              placeholder="Mobile Number"
-              required
-              style={{ width: "300px", padding: "8px" }}
-            />
-          </div>
-
-          <div style={{ marginBottom: "10px" }}>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="Email"
-              style={{ width: "300px", padding: "8px" }}
-            />
-          </div>
-
-          <div style={{ marginBottom: "10px" }}>
-            <input
-              type="text"
-              name="city"
-              value={form.city}
-              onChange={handleChange}
-              placeholder="City"
-              style={{ width: "300px", padding: "8px" }}
-            />
-          </div>
-
-          <div style={{ marginBottom: "10px" }}>
-            <select
-              name="requirementType"
-              value={form.requirementType}
-              onChange={handleChange}
-              required
-              style={{ width: "318px", padding: "8px" }}
-            >
-              <option value="">Select Category</option>
-              <option value="Solar">Solar</option>
-              <option value="Telecom">Telecom</option>
-              <option value="IT">IT</option>
-              <option value="Freelancer">Freelancer</option>
-              <option value="Jobs">Jobs</option>
-            </select>
-          </div>
-
-          <div style={{ marginBottom: "10px" }}>
-            <select
-              name="vendor"
-              value={form.vendor}
-              onChange={handleChange}
-              required
-              style={{ width: "318px", padding: "8px" }}
-            >
-              <option value="">Select Vendor</option>
-              <option value="Solar Vendor">Solar Vendor</option>
-              <option value="Airtel Vendor">Airtel Vendor</option>
-              <option value="Jio Vendor">Jio Vendor</option>
-              <option value="IT Vendor">IT Vendor</option>
-              <option value="Freelancer">Freelancer</option>
-              <option value="Company Hiring">Company Hiring</option>
-              <option value="Job Provider">Job Provider</option>
-            </select>
-          </div>
-
-          <div style={{ marginBottom: "10px" }}>
-            <textarea
-              name="requirement"
-              value={form.requirement}
-              onChange={handleChange}
-              placeholder="Enter your requirement"
-              required
-              rows="4"
-              style={{ width: "300px", padding: "8px" }}
-            />
-          </div>
-
-          <button type="submit">Submit</button>
-
-          {message && (
-            <p style={{ marginTop: "15px" }}>
-              {message}
-            </p>
-          )}
-        </form>
-      )}
-
-      {page === "admin" && (
-        <div>
-          <h2>Admin Panel</h2>
-          <p>Total Leads: {leads.length}</p>
-
-          <div style={{ overflowX: "auto" }}>
-            <table
-              border="1"
-              cellPadding="8"
-              style={{ borderCollapse: "collapse", width: "100%" }}
-            >
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Phone</th>
-                  <th>Email</th>
-                  <th>City</th>
-                  <th>Category</th>
-                  <th>Vendor</th>
-                  <th>Requirement</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {leads.length === 0 ? (
-                  <tr>
-                    <td colSpan="10" style={{ textAlign: "center" }}>
-                      No leads found
-                    </td>
-                  </tr>
-                ) : (
-                  leads.map((lead) => (
-                    <tr key={lead.id}>
-                      <td>{lead.name}</td>
-                      <td>{lead.phone}</td>
-                      <td>{lead.email}</td>
-                      <td>{lead.city}</td>
-                      <td>{lead.requirementType}</td>
-                      <td>
-                        <strong>{lead.vendor}</strong>
-                        <br />
-                        {lead.vendorPhone && (
-                          <>
-                            <a href={`tel:${lead.vendorPhone}`}>Call</a>
-                            {" | "}
-                            <a
-                              href={`https://wa.me/91${lead.vendorPhone}?text=${encodeURIComponent(
-                                `Hello ${lead.vendor}, new lead received:
-Name: ${lead.name}
-Phone: ${lead.phone}
-City: ${lead.city}
-Requirement: ${lead.requirement}`
-                              )}`}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              WhatsApp
-                            </a>
-                          </>
-                        )}
-                      </td>
-                      <td>{lead.requirement}</td>
-                      <td>
-                        <select
-                          value={lead.status}
-                          onChange={(e) => updateStatus(lead.id, e.target.value)}
-                        >
-                          <option value="New">New</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Completed">Completed</option>
-                          <option value="Rejected">Rejected</option>
-                        </select>
-                      </td>
-                      <td>{lead.createdAt}</td>
-                      <td>
-                        <button onClick={() => deleteLead(lead.id)}>
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  });
 }
 
-export default App;
+// Root route
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "Macky Ones Solution backend is running"
+  });
+});
+
+// Get all leads
+app.get("/leads", (req, res) => {
+  res.json({
+    success: true,
+    leads
+  });
+});
+
+// Submit lead
+app.post("/contact", async (req, res) => {
+  try {
+    const {
+      name,
+      phone,
+      email,
+      city,
+      requirementType,
+      vendor,
+      requirement
+    } = req.body;
+
+    if (!name || !phone || !requirementType || !vendor || !requirement) {
+      return res.status(400).json({
+        success: false,
+        message: "Required fields missing"
+      });
+    }
+
+    const newLead = {
+      id: Date.now(),
+      name,
+      phone,
+      email: email || "",
+      city: city || "",
+      requirementType,
+      vendor,
+      vendorPhone: vendorContacts[vendor] || "",
+      requirement,
+      status: "New",
+      createdAt: new Date().toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata"
+      })
+    };
+
+    // Save lead first
+    leads.unshift(newLead);
+
+    const emailHtml = `
+      <h2>New Requirement Received</h2>
+      <p><strong>Name:</strong> ${name}</p>
+      <p><strong>Phone:</strong> ${phone}</p>
+      <p><strong>Email:</strong> ${email || ""}</p>
+      <p><strong>City:</strong> ${city || ""}</p>
+      <p><strong>Category:</strong> ${requirementType}</p>
+      <p><strong>Vendor:</strong> ${vendor}</p>
+      <p><strong>Vendor Phone:</strong> ${vendorContacts[vendor] || ""}</p>
+      <p><strong>Requirement:</strong> ${requirement}</p>
+      <p><strong>Date:</strong> ${newLead.createdAt}</p>
+    `;
+
+    const whatsappMessage =
+      `New Lead Received\n\n` +
+      `Name: ${name}\n` +
+      `Phone: ${phone}\n` +
+      `Email: ${email || ""}\n` +
+      `City: ${city || ""}\n` +
+      `Category: ${requirementType}\n` +
+      `Vendor: ${vendor}\n` +
+      `Vendor Phone: ${vendorContacts[vendor] || ""}\n` +
+      `Requirement: ${requirement}\n` +
+      `Date: ${newLead.createdAt}`;
+
+    let emailSent = false;
+    let whatsappSent = false;
+    let emailError = "";
+    let whatsappError = "";
+
+    // Send email via Brevo API
+    try {
+      await axios.post(
+        "https://api.brevo.com/v3/smtp/email",
+        {
+          sender: {
+            name: "Macky Ones Solution",
+            email: process.env.FROM_EMAIL
+          },
+          to: [
+            {
+              email: process.env.TO_EMAIL
+            }
+          ],
+          subject: "New Requirement Received",
+          htmlContent: emailHtml
+        },
+        {
+          headers: {
+            "api-key": process.env.BREVO_API_KEY,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      emailSent = true;
+      console.log("Email sent via Brevo API");
+    } catch (err) {
+      emailError =
+        err.response?.data?.message ||
+        err.response?.data?.code ||
+        err.message;
+      console.error("BREVO MAIL ERROR:", err.response?.data || err.message);
+    }
+
+    // Send WhatsApp via CallMeBot
+    try {
+      await sendWhatsAppNotification(whatsappMessage);
+      whatsappSent = true;
+      console.log("WhatsApp notification sent");
+    } catch (err) {
+      whatsappError = err.message;
+      console.error("WHATSAPP ERROR:", err.message);
+    }
+
+    return res.json({
+      success: true,
+      message: emailSent
+        ? "Submitted successfully"
+        : "Lead saved, but email not sent",
+      emailSent,
+      whatsappSent,
+      emailError,
+      whatsappError,
+      lead: newLead
+    });
+  } catch (error) {
+    console.error("CONTACT SUBMIT ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+// Update lead status
+app.put("/leads/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const leadIndex = leads.findIndex(
+      (lead) => String(lead.id) === String(id)
+    );
+
+    if (leadIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Lead not found"
+      });
+    }
+
+    leads[leadIndex].status = status;
+
+    return res.json({
+      success: true,
+      message: "Status updated successfully",
+      lead: leads[leadIndex]
+    });
+  } catch (error) {
+    console.error("UPDATE STATUS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+// Delete lead
+app.delete("/leads/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const leadIndex = leads.findIndex(
+      (lead) => String(lead.id) === String(id)
+    );
+
+    if (leadIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Lead not found"
+      });
+    }
+
+    const deletedLead = leads[leadIndex];
+    leads = leads.filter((lead) => String(lead.id) !== String(id));
+
+    return res.json({
+      success: true,
+      message: "Lead deleted successfully",
+      lead: deletedLead
+    });
+  } catch (error) {
+    console.error("DELETE LEAD ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
