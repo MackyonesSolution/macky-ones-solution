@@ -45,17 +45,40 @@ function App() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage("Sending...");
+  e.preventDefault();
 
-    try {
-      const res = await fetch(`${API}/contact`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(form)
-      });
+  const data = {
+    name: name,
+    phone: phone,
+    email: email,
+    city: city,
+    category: category,
+    vendor: vendor,
+    requirement: requirement
+  };
+
+  try {
+    const res = await fetch("https://macky-ones-solutions.onrender.com/contact", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+
+    if (res.ok) {
+      alert("Form submitted successfully");
+    } else {
+      alert(result.message || "Error");
+    }
+
+  } catch (err) {
+    console.log(err);
+    alert("Server error");
+  }
+};
 
       const data = await res.json();
 
