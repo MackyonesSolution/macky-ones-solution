@@ -44,18 +44,15 @@ function App() {
     }));
   };
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-
   const data = {
-    name: name,
-    phone: phone,
-    email: email,
-    city: city,
-    category: category,
-    vendor: vendor,
-    requirement: requirement
-  };
+  name: name,
+  phone: phone,
+  email: email,
+  city: city,
+  requirementType: category,
+  vendor: vendor,
+  requirement: requirement
+};
 
   try {
     const res = await fetch("https://macky-ones-solutions.onrender.com/contact", {
